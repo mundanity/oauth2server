@@ -1,0 +1,318 @@
+<?php
+
+/**
+ * Implements hook_uninstall().
+ *
+ */
+function oauth2server_uninstall() {
+
+  variable_del('oauth2server_access_token_ttl');
+  variable_del('oauth2server_is_authorization_server');
+
+}
+
+
+/**
+ * Implements hook_schema().
+ *
+ */
+function oauth2server_schema() {
+
+  $schema['oauth2_clients'] = [
+    'description' => 'An OAuth2 client',
+    'fields' => [
+      'id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'secret' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'name' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => ['name' => ['name']],
+  ];
+
+  $schema['oauth2_sessions'] = [
+    'description' => 'OAuth2 sessions',
+    'fields' => [
+      'id' => [
+        'type'     => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'owner_type' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'owner_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'client_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'client_redirect_uri' => [
+        'type'     => 'varchar',
+        'length'   => 2048,
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'client_id'  => ['client_id'],
+      'owner_id'   => ['owner_id'],
+      'owner_type' => ['owner_type'],
+    ],
+  ];
+
+  $schema['oauth2_access_tokens'] = [
+    'description' => 'OAuth2 access tokens',
+    'fields' => [
+      'token' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'session_id' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'expire_time' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['token'],
+    'indexes' => [
+      'session_id'  => ['session_id'],
+      'expire_time' => ['expire_time'],
+    ],
+  ];
+
+  $schema['oauth2_refresh_tokens'] = [
+    'description' => 'OAuth2 refresh tokens',
+    'fields' => [
+      'token' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'access_token' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'expire_time' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['token'],
+    'indexes' => [
+      'access_token' => ['access_token'],
+      'expire_time'  => ['expire_time'],
+    ],
+  ];
+
+  $schema['oauth2_scopes'] = [
+    'description' => 'OAuth2 scopes',
+    'fields' => [
+      'id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'description' => [
+        'type'     => 'text',
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+  ];
+
+  $schema['oauth2_auth_codes'] = [
+    'description' => 'OAuth2 authorization codes',
+    'fields' => [
+      'auth_code' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'session_id' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'expire_time' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'client_redirect_uri' => [
+        'type'     => 'varchar',
+        'length'   => 2048,
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['auth_code'],
+    'indexes' => [
+      'session_id'  => ['session_id'],
+      'expire_time' => ['expire_time'],
+    ],
+  ];
+
+  $schema['oauth2_access_token_scopes'] = [
+    'description' => 'Scopes for OAuth2 access tokens',
+    'fields' => [
+      'id' => [
+        'type'     => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'access_token' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'scope_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'access_token' => ['access_token'],
+      'scope_id'  => ['scope_id'],
+    ],
+  ];
+
+  $schema['oauth2_auth_code_scopes'] = [
+    'description' => 'Scopes for OAuth2 authorization codes',
+    'fields' => [
+      'id' => [
+        'type'     => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'auth_code' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'scope_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'auth_code' => ['auth_code'],
+      'scope_id'  => ['scope_id'],
+    ],
+  ];
+
+  $schema['oauth2_session_scopes'] = [
+    'description' => 'Scopes for OAuth2 authorization codes',
+    'fields' => [
+      'id' => [
+        'type'     => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'session_id' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'scope_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'session_id' => ['session_id'],
+      'scope_id'  => ['scope_id'],
+    ],
+  ];
+
+  $schema['oauth2_client_redirect_uris'] = [
+    'description' => 'OAuth2 redirection URIs',
+    'fields' => [
+      'id' => [
+        'type'     => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'client_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'redirect_uri' => [
+        'type'     => 'varchar',
+        'length'   => 2048,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'client_id' => ['client_id'],
+    ],
+  ];
+
+  $schema['oauth2_entity_clients'] = [
+    'description' => 'A lookup table mapping OAuth2 clients to their entity owners',
+    'fields' => [
+      'client_id' => [
+        'type'     => 'varchar',
+        'length'   => 255,
+        'not null' => TRUE,
+      ],
+      'entity_id' => [
+        'type'     => 'varchar',
+        'length'   => 36,
+        'not null' => TRUE,
+      ],
+      'entity_type' => [
+        'type'     => 'varchar',
+        'length'   => 32,
+        'not null' => TRUE,
+      ],
+      'created' => [
+        'type'     => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['client_id', 'entity_id', 'entity_type'],
+    'indexes' => [
+      'client_id'      => ['client_id'],
+      'entity_type'    => ['entity_type'],
+      'created'        => ['created'],
+      'entity_id_type' => ['entity_id', 'entity_type'],
+    ],
+  ];
+
+  return $schema;
+
+}

@@ -1,0 +1,30 @@
+{
+    "name": "mundanity/oauth2server",
+    "description": "A lightweight OAuth2 server for Drupal",
+    "homepage": "https://github.com/mundanity/oauth2server",
+    "authors": [
+        {
+            "name": "Owen Loy",
+            "email": "owen@mundanity.com",
+            "homepage": "http://www.mundanity.com"
+        }
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "~5.5",
+        "mundanity/drupal-logger": "~1.0.0",
+        "league/oauth2-server": "~4.1.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "~4.5.0"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/mundanity/drupal-logger.git"
+        }
+    ],
+    "autoload": {
+        "psr-4": {"Drupal\\oauth2server\\": "src/"}
+    }
+}

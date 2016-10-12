@@ -1,0 +1,7 @@
+name = "OAuth2 Server"
+description = "Theoretically lightweight OAuth2 server"
+core = 7.x
+php = 5.5
+
+dependencies[] = restapi
+dependencies[] = xautoload

@@ -1,0 +1,189 @@
+<?php
+
+use Drupal\oauth2server\Server\DrupalResourceServer;
+use League\OAuth2\Server\Entity\ClientEntity;
+
+
+/**
+ * Implements hook_menu().
+ *
+ */
+function oauth2server_menu() {
+
+  $items['admin/config/system/oauth2server'] = [
+    'title'            => 'OAuth2 Server Settings',
+    'description'      => 'Configuration options for the OAuth2 server.',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => ['oauth2server_admin_form'],
+    'access arguments' => ['administer site configuration'],
+    'file'             => 'oauth2server.admin.inc',
+    'type'             => MENU_NORMAL_ITEM,
+  ];
+
+  return $items;
+
+}
+
+
+/**
+ * Implements hook_xautoload().
+ *
+ */
+function oauth2server_xautoload($adapter) {
+  if (module_exists('composer_manager')) {
+    $dir = composer_manager_vendor_dir() . '/composer';
+    $adapter->absolute()->composerDir($dir);
+  }
+
+  if (is_dir(__DIR__ . '/vendor/composer')) {
+    $adapter->composerDir('vendor/composer');
+  }
+}
+
+
+/**
+ * Implements hook_restapi_resources().
+ *
+ */
+function oauth2server_restapi_resources() {
+
+  $items = [];
+
+  if (variable_get('oauth2server_is_authorization_server', TRUE)) {
+    $items['access_token'] = array(
+      'class' => 'Drupal\oauth2server\Resources\AccessToken',
+      'auth'  => 'Drupal\restapi\Auth\DrupalAuthenticationService',
+    );
+    $items['introspect'] = [
+      'class' => 'Drupal\oauth2server\Resources\Introspect',
+      'auth'  => 'Drupal\restapi\Auth\DrupalAuthenticationService',
+    ];
+  }
+
+  return $items;
+
+}
+
+
+/**
+ * Implements hook_entity_delete().
+ *
+ */
+function oauth2server_entity_delete($entity, $type) {
+
+  // Remove clients associated with deleted entities.
+  list($id) = entity_extract_ids($type, $entity);
+
+  if ($id) {
+    $server     = DrupalResourceServer::configure();
+    $repository = $server->getClientStorage();
+    $clients    = $repository->getClientsByEntity($id, $type);
+
+    foreach($clients as $client) {
+      $repository->delete($client);
+    }
+
+    if ($clients) {
+      watchdog('oauth2server', 'Deleted !count OAuth2 clients associated with the entity (id: @id, type: @type).', [
+        '!count' => count($clients),
+        '@id'    => $id,
+        '@type'  => $type,
+      ], WATCHDOG_INFO);
+    }
+  }
+
+}
+
+
+/**
+ * Implements hook_cron().
+ *
+ * @todo Is relying on hook_cron too fragile?
+ *
+ */
+function oauth2server_cron() {
+  oauth2server_expire_tokens();
+}
+
+
+/**
+ * Provides a callback for username / password authentication.
+ *
+ * @return callable
+ *
+ * @todo We need to tie this u/p in with the client as well, ensuring a user -> client match.
+ *       If it's not immediately obvious we could try a modified password calback that has the client
+ *       id as well?
+ */
+function oauth2server_password_callback() {
+  return function($username, $password) {
+    return TRUE;
+  };
+}
+
+
+/**
+ * Expires tokens and authorization codes.
+ *
+ * @return \StdClass
+ *   An object representing the number of items expired.
+ *
+ * <code>
+ *   (object) [
+ *     'access_tokens'  => 5,
+ *     'refresh_tokens' => 1,
+ *     'auth_codes'     => 0,
+ *   ]
+ * </code>
+ */
+function oauth2server_expire_tokens() {
+
+  $access = db_delete('oauth2_access_tokens')
+    ->condition('expire_time', time(), '<')
+    ->execute();
+
+  $refresh = db_delete('oauth2_refresh_tokens')
+    ->condition('expire_time', time(), '<')
+    ->execute();
+
+  $auth_code = db_delete('oauth2_auth_codes')
+    ->condition('expire_time', time(), '<')
+    ->execute();
+
+  watchdog('oauth2server', 'Expired !access access tokens, !refresh refresh tokens, and !auth authorization codes.', [
+    '!access'  => $access,
+    '!refresh' => $refresh,
+    '!auth'    => $auth_code,
+  ], WATCHDOG_NOTICE);
+
+  return (object) [
+    'access_tokens'  => (int) $access,
+    'refresh_tokens' => (int) $refresh,
+    'auth_codes'     => (int) $auth_code,
+  ];
+
+}
+
+
+/**
+ * This is a helper function to create a new client associated to an entity.
+ *
+ * @param string $id
+ *   The machine readable ID of the new client.
+ * @param string $secret
+ *   The secret key of the client.
+ * @param string $name
+ *   The human readable name or label of this client.
+ *
+ * @return ClientEntity
+ *
+ */
+function oauth2server_create_client($id, $secret, $name) {
+
+  $server = DrupalResourceServer::configure();
+  $repo   = $server->getClientStorage();
+  $client = $repo->create($id, $secret, $name);
+
+  return $client;
+
+}
