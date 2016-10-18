@@ -116,8 +116,14 @@ function oauth2server_cron() {
  *       id as well?
  */
 function oauth2server_password_callback() {
+
+  if (!function_exists('user_check_password')) {
+    require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+  }
+
   return function($username, $password) {
-    return TRUE;
+    $user = user_load_by_mail($username);
+    return $user && user_check_password($password, $user);
   };
 }
 
